@@ -1,7 +1,13 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 
 // Shape renderers for SVG flowchart
 export function FlowchartSVG({ nodes, connections, selectedNode, onNodeClick, onNodeDragStart, interactive = false }) {
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const isPanning = useRef(false);
+  const startPan = useRef({ x: 0, y: 0 });
+  const svgRef = useRef(null);
+
   if (!nodes || nodes.length === 0) {
     return (
       <div className="flowchart-empty">
@@ -22,19 +28,67 @@ export function FlowchartSVG({ nodes, connections, selectedNode, onNodeClick, on
     minY = Math.min(minY, n.y - hh);
     maxY = Math.max(maxY, n.y + hh);
   }
+  
   const padding = 80;
-  const vbX = minX - padding;
-  const vbY = minY - padding;
-  const vbW = (maxX - minX) + padding * 2;
-  const vbH = (maxY - minY) + padding * 2;
+  const origVbX = minX - padding;
+  const origVbY = minY - padding;
+  const origVbW = (maxX - minX) + padding * 2;
+  const origVbH = (maxY - minY) + padding * 2;
+
+  const vbW = origVbW / zoom;
+  const vbH = origVbH / zoom;
+  const vbX = origVbX + (origVbW - vbW) / 2 - pan.x;
+  const vbY = origVbY + (origVbH - vbH) / 2 - pan.y;
+
+  const handlePointerDown = (e) => {
+    if (e.button !== 0) return;
+    if (e.target.closest('.flowchart-node')) return;
+    isPanning.current = true;
+    startPan.current = { x: e.clientX, y: e.clientY };
+  };
+
+  const handlePointerMove = (e) => {
+    if (isPanning.current && svgRef.current) {
+      const dx = e.clientX - startPan.current.x;
+      const dy = e.clientY - startPan.current.y;
+      const svg = svgRef.current;
+      const scaleX = vbW / svg.clientWidth;
+      const scaleY = vbH / svg.clientHeight;
+      const scale = Math.max(scaleX, scaleY);
+      setPan(p => ({ x: p.x + dx * scale, y: p.y + dy * scale }));
+      startPan.current = { x: e.clientX, y: e.clientY };
+    }
+  };
+
+  const handlePointerUp = () => {
+    isPanning.current = false;
+  };
+
+  const handleWheel = (e) => {
+    const zoomDelta = e.deltaY > 0 ? 0.9 : 1.1;
+    setZoom(z => Math.max(0.1, Math.min(5, z * zoomDelta)));
+  };
 
   return (
-    <svg
-      className="flowchart-svg"
-      viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
-      preserveAspectRatio="xMidYMid meet"
-    >
-      <defs>
+    <div className="flowchart-wrapper" style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+      <div className="zoom-controls">
+        <button onClick={() => setZoom(z => Math.min(5, z * 1.25))} title="Yakınlaştır">➕</button>
+        <button onClick={() => { setZoom(1); setPan({x: 0, y: 0}); }} title="Sıfırla">🏠</button>
+        <button onClick={() => setZoom(z => Math.max(0.1, z / 1.25))} title="Uzaklaştır">➖</button>
+      </div>
+      <svg
+        ref={svgRef}
+        className="flowchart-svg"
+        viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`}
+        preserveAspectRatio="xMidYMid meet"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+        onWheel={handleWheel}
+        style={{ cursor: isPanning.current ? 'grabbing' : 'grab' }}
+      >
+        <defs>
         <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
           <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
         </marker>
@@ -87,6 +141,7 @@ export function FlowchartSVG({ nodes, connections, selectedNode, onNodeClick, on
         />
       ))}
     </svg>
+    </div>
   );
 }
 
