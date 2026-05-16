@@ -111,13 +111,18 @@ function App() {
         )}
       </main>
 
-      {/* Legend */}
-      <div className="shape-legend">
-        <div className="legend-item"><span className="legend-dot" style={{ background: '#10b981' }} /> Başla/Bitir</div>
-        <div className="legend-item"><span className="legend-dot" style={{ background: '#6366f1' }} /> İşlem</div>
-        <div className="legend-item"><span className="legend-dot" style={{ background: '#f59e0b' }} /> Girdi</div>
-        <div className="legend-item"><span className="legend-dot" style={{ background: '#06b6d4' }} /> Çıktı</div>
-        <div className="legend-item"><span className="legend-dot" style={{ background: '#f97316' }} /> Karar</div>
+      {/* Legend and Footer */}
+      <div className="shape-legend-container">
+        <div className="shape-legend">
+          <div className="legend-item"><span className="legend-dot" style={{ background: '#10b981' }} /> Başla/Bitir</div>
+          <div className="legend-item"><span className="legend-dot" style={{ background: '#6366f1' }} /> İşlem</div>
+          <div className="legend-item"><span className="legend-dot" style={{ background: '#f59e0b' }} /> Girdi</div>
+          <div className="legend-item"><span className="legend-dot" style={{ background: '#06b6d4' }} /> Çıktı</div>
+          <div className="legend-item"><span className="legend-dot" style={{ background: '#f97316' }} /> Karar</div>
+        </div>
+        <div className="app-footer">
+          Sezai KAYA tarafından Algoritma ve Akış Şeması konusu anlatılmak için hazırlanmıştır.
+        </div>
       </div>
 
       {/* Examples Modal */}

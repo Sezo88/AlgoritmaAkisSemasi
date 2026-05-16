@@ -378,11 +378,14 @@ body {
 }
 .input-field:focus { border-color: var(--primary); }
 
-/* ===== SHAPE LEGEND ===== */
+/* ===== SHAPE LEGEND AND FOOTER ===== */
+.shape-legend-container {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--bg-secondary); border-top: 1px solid var(--border-light);
+  padding: 8px 24px;
+}
 .shape-legend {
   display: flex; justify-content: center; gap: 20px;
-  padding: 8px 24px; background: var(--bg-secondary);
-  border-top: 1px solid var(--border-light);
 }
 .legend-item {
   display: flex; align-items: center; gap: 6px;
@@ -390,6 +393,11 @@ body {
 }
 .legend-dot {
   width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.app-footer {
+  margin-top: 8px;
+  font-size: 11px; color: var(--text-muted); font-weight: 500;
+  text-align: center;
 }
 
 /* ===== MODAL ===== */
