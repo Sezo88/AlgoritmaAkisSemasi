@@ -28,7 +28,7 @@ export default function FlowchartBuilder({ flowchartData, setFlowchartData, onCo
       id: `builder_${Date.now()}`,
       type: shapeType.type,
       text: shapeType.defaultText,
-      x: 400,
+      x: 600,
       y: 80 + nodes.filter(n => n.type !== 'connector').length * 100,
       width: shapeType.type === 'decision' ? 200 : 180,
       height: shapeType.type === 'decision' ? 80 : 56,
