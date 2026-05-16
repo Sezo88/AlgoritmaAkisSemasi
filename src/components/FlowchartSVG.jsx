@@ -22,29 +22,11 @@ export function FlowchartSVG({ nodes, connections, selectedNode, onNodeClick, on
     minY = Math.min(minY, n.y - hh);
     maxY = Math.max(maxY, n.y + hh);
   }
-  let vbX, vbY, vbW, vbH;
-
-  if (interactive) {
-    // Builder modunda kararlı (stable) bir viewBox kullan: minimum 1200x800
-    // Sadece şekiller alan dışına taşarsa viewBox'ı genişlet.
-    // Bu sayede şekiller kendiliğinden küçülüp büyümez ve sürükleme sapıtmaz.
-    const padding = 100;
-    vbX = Math.min(0, minX - padding);
-    vbY = Math.min(0, minY - padding);
-    vbW = Math.max(1200, maxX - vbX + padding);
-    vbH = Math.max(800, maxY - vbY + padding);
-  } else {
-    // Önizleme modunda tam ortala ve crop yap
-    const padding = 60;
-    const rawW = (maxX - minX) + padding * 2;
-    const rawH = (maxY - minY) + padding * 2;
-    const MIN_W = 800;
-    const MIN_H = 500;
-    vbW = Math.max(rawW, MIN_W);
-    vbH = Math.max(rawH, MIN_H);
-    vbX = minX - padding - (vbW - rawW) / 2;
-    vbY = minY - padding - (vbH - rawH) / 2;
-  }
+  const padding = 80;
+  const vbX = minX - padding;
+  const vbY = minY - padding;
+  const vbW = (maxX - minX) + padding * 2;
+  const vbH = (maxY - minY) + padding * 2;
 
   return (
     <svg

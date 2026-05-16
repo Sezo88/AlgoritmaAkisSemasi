@@ -103,24 +103,35 @@ export default function FlowchartBuilder({ flowchartData, setFlowchartData, onCo
   const handleDragStart = useCallback((e, nodeId) => {
     const svg = svgContainerRef.current?.querySelector('svg');
     if (!svg) return;
-    const pt = svg.createSVGPoint();
-    pt.x = e.clientX;
-    pt.y = e.clientY;
-    const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-    dragRef.current = { active: true, nodeId, startX: svgP.x, startY: svgP.y };
+    
+    // Scale oranını hesapla (viewBox genişliği / gerçek pixel genişliği)
+    const vb = svg.getAttribute('viewBox').split(' ').map(Number);
+    const scaleX = vb[2] / svg.clientWidth;
+    const scaleY = vb[3] / svg.clientHeight;
+    const scale = Math.max(scaleX, scaleY); // preserveAspectRatio="meet" için
+
+    dragRef.current = { 
+      active: true, 
+      nodeId, 
+      startClientX: e.clientX, 
+      startClientY: e.clientY,
+      scale
+    };
 
     const handleMove = (me) => {
       if (!dragRef.current.active) return;
-      const mp = svg.createSVGPoint();
-      mp.x = me.clientX;
-      mp.y = me.clientY;
-      const msvg = mp.matrixTransform(svg.getScreenCTM().inverse());
-      const dx = msvg.x - dragRef.current.startX;
-      const dy = msvg.y - dragRef.current.startY;
-      dragRef.current.startX = msvg.x;
-      dragRef.current.startY = msvg.y;
+      
+      const dxCSS = me.clientX - dragRef.current.startClientX;
+      const dyCSS = me.clientY - dragRef.current.startClientY;
+      
+      const dxSVG = dxCSS * dragRef.current.scale;
+      const dySVG = dyCSS * dragRef.current.scale;
+      
+      dragRef.current.startClientX = me.clientX;
+      dragRef.current.startClientY = me.clientY;
+      
       setFlowchartData(prev => ({
-        nodes: prev.nodes.map(n => n.id === dragRef.current.nodeId ? { ...n, x: n.x + dx, y: n.y + dy } : n),
+        nodes: prev.nodes.map(n => n.id === dragRef.current.nodeId ? { ...n, x: n.x + dxSVG, y: n.y + dySVG } : n),
         connections: [...prev.connections]
       }));
     };
