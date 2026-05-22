@@ -117,14 +117,52 @@ function algorithmToJS_StepBased(lines) {
     if (t) steps.push({ lineNum: idx + 1, line: t });
   }
 
-  const declaredVars = new Set();
+  // ── Adım 1: Tüm değişken isimlerini önceden tara ──────────────────────
+  // switch/case içinde `let` kullanmak TDZ hatasına yol açar.
+  // Çözüm: tüm değişkenleri switch'ten önce declare et.
+  const allVars = new Set();
+  const loopVars = new Set();
+
+  for (const { line } of steps) {
+    if (line.startsWith('OKU ')) {
+      const rest = line.substring(4).trim();
+      const match = rest.match(/^"([^"]*?)"\s+(\w+)$/);
+      allVars.add(match ? match[2] : rest);
+    } else if (
+      line.includes('=') &&
+      !line.startsWith('EĞER') &&
+      !line.startsWith('DÖNGÜ') &&
+      !line.startsWith('GİT') &&
+      !/^\d+\.\s*Adım/i.test(line) &&
+      !/Adım\s+git/i.test(line)
+    ) {
+      const eqIdx = line.indexOf('=');
+      const varName = line.substring(0, eqIdx).trim();
+      if (/^\w+$/.test(varName)) allVars.add(varName);
+    } else if (line.startsWith('DÖNGÜ ')) {
+      const loopDef = line.substring(6).trim();
+      const m = loopDef.match(/(\w+)\s*=/);
+      if (m) { allVars.add(m[1]); loopVars.add(m[1]); }
+    }
+  }
+
+  // ── Adım 2: Kod üret ──────────────────────────────────────────────────
   let jsCode = '';
+
+  // Tüm değişkenleri switch'ten önce declare et
+  if (allVars.size > 0) {
+    jsCode += `let ${[...allVars].join(', ')};\n`;
+  }
+  // Döngü değişkenleri için init-flag
+  if (loopVars.size > 0) {
+    for (const v of loopVars) {
+      jsCode += `let _init_${v} = false;\n`;
+    }
+  }
+
   jsCode += `let _step = 1;\n`;
   jsCode += `_loop: while (true) {\n`;
   jsCode += `  switch (_step) {\n`;
-
-  let structIndent = 0; // EĞER/DÖNGÜ blokları için
-  const indentStack = []; // her case'in kapanış için
 
   for (const { lineNum, line } of steps) {
     const isGoto = (
@@ -133,7 +171,7 @@ function algorithmToJS_StepBased(lines) {
       /Adım[aA]\s+git/i.test(line)
     );
 
-    const pad = '    '; // case içi girinti
+    const pad = '    ';
     const inner = '      ';
 
     jsCode += `${pad}case ${lineNum}:\n`;
@@ -148,13 +186,9 @@ function algorithmToJS_StepBased(lines) {
       const match = rest.match(/^"([^"]*?)"\s+(\w+)$/);
       if (match) {
         const [, prompt, varName] = match;
-        declaredVars.add(varName);
-        jsCode += `${inner}${declaredVars.has(varName) ? '' : 'let '}${varName} = parseFloat(await girdi("${prompt}"));\n`;
-        declaredVars.add(varName);
+        jsCode += `${inner}${varName} = parseFloat(await girdi("${prompt}"));\n`;
       } else {
-        const varName = rest;
-        declaredVars.add(varName);
-        jsCode += `${inner}let ${varName} = parseFloat(await girdi("${varName} değerini girin:"));\n`;
+        jsCode += `${inner}${rest} = parseFloat(await girdi("${rest} değerini girin:"));\n`;
       }
       jsCode += `${inner}_step = ${lineNum + 1}; break;\n`;
     } else if (line.startsWith('YAZ ')) {
@@ -165,12 +199,9 @@ function algorithmToJS_StepBased(lines) {
     } else if (line.startsWith('EĞER ')) {
       const condition = line.replace(/^EĞER\s+/, '').replace(/\s+İSE$/, '');
       const jsCond = convertCondition(condition);
-      // EĞER koşulunun true kolu bir sonraki satır, false kolu DEĞİLSE/EĞER_BİTİR'e gider
-      // step-based'de: if true → next step, if false → find DEĞİLSE or EĞER_BİTİR line
       const falseTarget = findMatchingElseOrEnd(steps, lineNum);
       jsCode += `${inner}if (${jsCond}) { _step = ${lineNum + 1}; } else { _step = ${falseTarget}; } break;\n`;
     } else if (line === 'DEĞİLSE') {
-      // DEĞİLSE'ye ulaşıldıysa true branch bitti, EĞER_BİTİR'e atla
       const endTarget = findMatchingEğerBitir(steps, lineNum);
       jsCode += `${inner}_step = ${endTarget + 1}; break;\n`;
     } else if (line === 'EĞER_BİTİR') {
@@ -180,34 +211,28 @@ function algorithmToJS_StepBased(lines) {
       const match = loopDef.match(/(\w+)\s*=\s*(.+?)\s*,\s*(.+?)\s*,\s*(.+)/);
       if (match) {
         const [, varName, start, end, step] = match;
-        // İlk geçişte init, sonra step'i uygula
         const op = step.trim().startsWith('-') ? '>=' : '<=';
-        jsCode += `${inner}if (typeof ${varName} === 'undefined' || ${varName}._init !== ${lineNum}) {\n`;
-        jsCode += `${inner}  var ${varName} = Object.assign(${start}, { _init: ${lineNum} });\n`;
-        jsCode += `${inner}} else { ${varName} += ${step}; }\n`;
+        // İlk geçişte init, sonraki geçişlerde artır
+        jsCode += `${inner}if (!_init_${varName}) { ${varName} = ${start}; _init_${varName} = true; } else { ${varName} += ${step}; }\n`;
         const exitTarget = findLoopEnd(steps, lineNum);
-        jsCode += `${inner}if (${varName} ${op} ${end}) { _step = ${lineNum + 1}; } else { _step = ${exitTarget + 1}; } break;\n`;
-        declaredVars.add(varName);
+        jsCode += `${inner}if (${varName} ${op} ${end}) { _step = ${lineNum + 1}; } else { _init_${varName} = false; _step = ${exitTarget + 1}; } break;\n`;
       } else {
         jsCode += `${inner}_step = ${lineNum + 1}; break;\n`;
       }
     } else if (line === 'DÖNGÜ_BİTİR') {
-      // Döngü başına geri dön
       const loopStart = findLoopStart(steps, lineNum);
       jsCode += `${inner}_step = ${loopStart}; break;\n`;
     } else if (isGoto) {
       const stepMatch = line.match(/(\d+)/);
       const targetStep = stepMatch ? parseInt(stepMatch[1], 10) : 1;
-      // lineNum → gerçek satır numarasına çevir
       const targetLineNum = resolveStepToLine(steps, targetStep);
       jsCode += `${inner}_step = ${targetLineNum}; break;\n`;
     } else if (line.includes('=') && !line.startsWith('EĞER') && !line.startsWith('DÖNGÜ')) {
       const eqIdx = line.indexOf('=');
       const varName = line.substring(0, eqIdx).trim();
       const expr = line.substring(eqIdx + 1).trim();
-      const prefix = declaredVars.has(varName) ? '' : 'let ';
-      if (!declaredVars.has(varName)) declaredVars.add(varName);
-      jsCode += `${inner}${prefix}${varName} = ${expr};\n`;
+      // Prefix yok - değişken zaten yukarıda declare edildi
+      jsCode += `${inner}${varName} = ${expr};\n`;
       jsCode += `${inner}_step = ${lineNum + 1}; break;\n`;
     } else {
       jsCode += `${inner}// ${line}\n`;
@@ -221,6 +246,7 @@ function algorithmToJS_StepBased(lines) {
 
   return jsCode;
 }
+
 
 // ─── Yardımcılar ──────────────────────────────────────────────────────────
 
