@@ -199,13 +199,17 @@ function algorithmToJS_StepBased(lines) {
     } else if (line.startsWith('EĞER ')) {
       const condition = line.replace(/^EĞER\s+/, '').replace(/\s+İSE$/, '');
       const jsCond = convertCondition(condition);
-      const falseTarget = findMatchingElseOrEnd(steps, lineNum);
-      jsCode += `${inner}if (${jsCond}) { _step = ${lineNum + 1}; } else { _step = ${falseTarget}; } break;\n`;
+      const falseMarker = findMatchingElseOrEnd(steps, lineNum);
+      // false → DEĞİLSE satırının KENDİSİ değil, else bloğunun İLK SATIRI
+      // (DEĞİLSE yoksa EĞER_BİTİR'in bir sonraki satırı)
+      const falseStep = nextStepAfter(steps, falseMarker);
+      jsCode += `${inner}if (${jsCond}) { _step = ${lineNum + 1}; } else { _step = ${falseStep}; } break;\n`;
     } else if (line === 'DEĞİLSE') {
-      const endTarget = findMatchingEğerBitir(steps, lineNum);
-      jsCode += `${inner}_step = ${endTarget + 1}; break;\n`;
+      // True branch tamamlandı, EĞER_BİTİR'in sonrasına atla
+      const eğerBitirLine = findMatchingEğerBitir(steps, lineNum);
+      jsCode += `${inner}_step = ${nextStepAfter(steps, eğerBitirLine)}; break;\n`;
     } else if (line === 'EĞER_BİTİR') {
-      jsCode += `${inner}_step = ${lineNum + 1}; break;\n`;
+      jsCode += `${inner}_step = ${nextStepAfter(steps, lineNum)}; break;\n`;
     } else if (line.startsWith('DÖNGÜ ')) {
       const loopDef = line.substring(6).trim();
       const match = loopDef.match(/(\w+)\s*=\s*(.+?)\s*,\s*(.+?)\s*,\s*(.+)/);
@@ -249,6 +253,17 @@ function algorithmToJS_StepBased(lines) {
 
 
 // ─── Yardımcılar ──────────────────────────────────────────────────────────
+
+/**
+ * Verilen lineNum'dan SONRA gelen ilk adımın lineNum'unu döndürür.
+ * Boş satırlar atlandığından lineNum+1 her zaman geçerli bir case olmayabilir.
+ */
+function nextStepAfter(steps, lineNum) {
+  for (const step of steps) {
+    if (step.lineNum > lineNum) return step.lineNum;
+  }
+  return lineNum + 1; // fallback (BİTİR'den sonrası - default case yakalar)
+}
 
 /** GİT N. Adıma → N, gerçek satır numarasına çevir */
 function resolveStepToLine(steps, stepNum) {
