@@ -302,8 +302,17 @@ function ConnectionLine({ conn, nodes, idx, isHovered, onHover, onDelete, intera
   let path;
   const SIDE_OFFSET = 60; // yan kaçış mesafesi
 
-  if (isBack) {
-    // Geri ok: sol tarafa çık, yukarı çık
+  if (isBack && conn.isGoto) {
+    // GİT komutu: sağdan çık, yukarı dön (pembe)
+    const rightX = Math.max(fromNode.x + fromNode.width / 2, toNode.x + toNode.width / 2) + SIDE_OFFSET + 30;
+    // fromNode alt ortasından çık, sağa git, yukarı çık, hedef sağ ortasına gir
+    x1 = fromNode.x + fromNode.width / 2;
+    y1 = fromNode.y;
+    x2 = toNode.x + toNode.width / 2;
+    y2 = toNode.y;
+    path = `M ${x1} ${y1} L ${rightX} ${y1} L ${rightX} ${y2} L ${x2} ${y2}`;
+  } else if (isBack) {
+    // Döngü geri oku: soldan çık
     const leftX = Math.min(fromNode.x - fromNode.width / 2, toNode.x - toNode.width / 2) - SIDE_OFFSET;
     path = `M ${x1} ${y1} L ${leftX} ${y1} L ${leftX} ${y2} L ${x2} ${y2}`;
   } else if (conn.side === 'right') {

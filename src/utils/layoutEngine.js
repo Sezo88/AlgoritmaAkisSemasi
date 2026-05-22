@@ -128,6 +128,47 @@ export function layoutFlowchart(ast) {
 
   layoutBlock(ast, centerX, 60);
 
+  // ── Goto bağlantıları: goto node → hedef satır numarasındaki node ──
+  // AST'deki tüm goto item'larını tara, lineNum eşleşen node'a geri ok çiz
+  function collectGotoItems(block) {
+    const result = [];
+    for (const item of block) {
+      if (item.type === 'goto') result.push(item);
+      if (item.trueBranch) result.push(...collectGotoItems(item.trueBranch));
+      if (item.falseBranch) result.push(...collectGotoItems(item.falseBranch));
+      if (item.body) result.push(...collectGotoItems(item.body));
+    }
+    return result;
+  }
+
+  const gotoItems = collectGotoItems(ast);
+  for (const item of gotoItems) {
+    // Goto node'u bul
+    const gotoNode = nodes.find(n => n.type === 'goto' && n.text === item.text);
+    if (!gotoNode) continue;
+
+    // Hedef: lineNum ile eşleşen node (ast item'larına lineNum eklendi)
+    const targetItem = findItemByLineNum(ast, item.stepNum);
+    let targetNode = null;
+
+    if (targetItem) {
+      // lineNum eşleşen item'ın text'i ile node'u bul
+      targetNode = nodes.find(n => n.text === targetItem.text && n.type === targetItem.type);
+    }
+
+    // Bulamazsak goto'nun üstündeki en yakın node'u hedef al
+    if (!targetNode) {
+      const nodesAbove = nodes.filter(n => n.type !== 'connector' && n.type !== 'goto' && n.y < gotoNode.y);
+      if (nodesAbove.length > 0) {
+        targetNode = nodesAbove.sort((a, b) => b.y - a.y)[0];
+      }
+    }
+
+    if (targetNode) {
+      connections.push({ from: gotoNode.id, to: targetNode.id, label: '', isBack: true, isGoto: true });
+    }
+  }
+
   // Fix decision connections - remove null targets
   const validConnections = connections.filter(c => c.from && c.to);
 
@@ -146,3 +187,17 @@ export function layoutFlowchart(ast) {
     bounds: { minX, maxX, minY, maxY, width: maxX - minX, height: maxY - minY }
   };
 }
+
+/** AST'de lineNum eşleşen ilk item'ı bul (iç içe bloklar dahil) */
+function findItemByLineNum(block, lineNum) {
+  for (const item of block) {
+    if (item.lineNum === lineNum) return item;
+    let found = null;
+    if (item.trueBranch) found = findItemByLineNum(item.trueBranch, lineNum);
+    if (!found && item.falseBranch) found = findItemByLineNum(item.falseBranch, lineNum);
+    if (!found && item.body) found = findItemByLineNum(item.body, lineNum);
+    if (found) return found;
+  }
+  return null;
+}
+
