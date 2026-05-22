@@ -64,6 +64,16 @@ export function parseAlgorithm(text) {
         const body = parseBlock(['TEKRARLA_BİTİR']);
         if (currentLine() === 'TEKRARLA_BİTİR') advance();
         block.push({ type: 'loop', text: condition, body, loopType: 'while' });
+      } else if (
+        line.startsWith('GİT ') ||
+        /^\d+\.\s*Adım[aA]/i.test(line) ||
+        /Adım[aA]\s+git/i.test(line)
+      ) {
+        // GİT 3. Adıma  |  3. Adıma Dön  |  5. Adıma Git
+        const stepMatch = line.match(/(\d+)/);
+        const stepNum = stepMatch ? parseInt(stepMatch[1], 10) : '?';
+        block.push({ type: 'goto', text: line, stepNum });
+        advance();
       } else {
         // Assignment or generic process
         block.push({ type: 'process', text: line });

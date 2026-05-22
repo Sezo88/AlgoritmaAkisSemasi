@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 
 // Shape renderers for SVG flowchart
-export function FlowchartSVG({ nodes, connections, selectedNode, onNodeClick, onNodeDragStart, interactive = false }) {
+export function FlowchartSVG({ nodes, connections, selectedNode, onNodeClick, onNodeDragStart, interactive = false, onDeleteConnection }) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [hoveredConn, setHoveredConn] = useState(null);
   const isPanning = useRef(false);
   const startPan = useRef({ x: 0, y: 0 });
   const svgRef = useRef(null);
@@ -89,58 +90,74 @@ export function FlowchartSVG({ nodes, connections, selectedNode, onNodeClick, on
         style={{ cursor: isPanning.current ? 'grabbing' : 'grab' }}
       >
         <defs>
-        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-          <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
-        </marker>
-        <marker id="arrowhead-back" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
-          <polygon points="0 0, 10 3.5, 0 7" fill="#a78bfa" />
-        </marker>
-        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.1" floodColor="#64748b"/>
-        </filter>
-        <linearGradient id="grad-start" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#34d399"/>
-          <stop offset="100%" stopColor="#10b981"/>
-        </linearGradient>
-        <linearGradient id="grad-end" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#f87171"/>
-          <stop offset="100%" stopColor="#ef4444"/>
-        </linearGradient>
-        <linearGradient id="grad-process" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#818cf8"/>
-          <stop offset="100%" stopColor="#6366f1"/>
-        </linearGradient>
-        <linearGradient id="grad-input" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#fbbf24"/>
-          <stop offset="100%" stopColor="#f59e0b"/>
-        </linearGradient>
-        <linearGradient id="grad-output" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#22d3ee"/>
-          <stop offset="100%" stopColor="#06b6d4"/>
-        </linearGradient>
-        <linearGradient id="grad-decision" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#fb923c"/>
-          <stop offset="100%" stopColor="#f97316"/>
-        </linearGradient>
-      </defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+          </marker>
+          <marker id="arrowhead-back" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#a78bfa" />
+          </marker>
+          <marker id="arrowhead-goto" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#f472b6" />
+          </marker>
+          <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.1" floodColor="#64748b"/>
+          </filter>
+          <linearGradient id="grad-start" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#34d399"/>
+            <stop offset="100%" stopColor="#10b981"/>
+          </linearGradient>
+          <linearGradient id="grad-end" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#f87171"/>
+            <stop offset="100%" stopColor="#ef4444"/>
+          </linearGradient>
+          <linearGradient id="grad-process" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#818cf8"/>
+            <stop offset="100%" stopColor="#6366f1"/>
+          </linearGradient>
+          <linearGradient id="grad-input" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#fbbf24"/>
+            <stop offset="100%" stopColor="#f59e0b"/>
+          </linearGradient>
+          <linearGradient id="grad-output" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#22d3ee"/>
+            <stop offset="100%" stopColor="#06b6d4"/>
+          </linearGradient>
+          <linearGradient id="grad-decision" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#fb923c"/>
+            <stop offset="100%" stopColor="#f97316"/>
+          </linearGradient>
+          <linearGradient id="grad-goto" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#f472b6"/>
+            <stop offset="100%" stopColor="#ec4899"/>
+          </linearGradient>
+        </defs>
 
-      {/* Render connections first (below nodes) */}
-      {connections.map((conn, idx) => (
-        <ConnectionLine key={idx} conn={conn} nodes={nodes} />
-      ))}
+        {/* Render connections first (below nodes) */}
+        {connections.map((conn, idx) => (
+          <ConnectionLine
+            key={idx}
+            idx={idx}
+            conn={conn}
+            nodes={nodes}
+            isHovered={hoveredConn === idx}
+            onHover={setHoveredConn}
+            onDelete={onDeleteConnection}
+            interactive={interactive}
+          />
+        ))}
 
-      {/* Render nodes */}
-      {nodes.map(node => (
-        <NodeShape
-          key={node.id}
-          node={node}
-          isSelected={selectedNode === node.id}
-          onClick={() => onNodeClick?.(node.id)}
-          interactive={interactive}
-          onDragStart={onNodeDragStart}
-        />
-      ))}
-    </svg>
+        {/* Render nodes */}
+        {nodes.map(node => (
+          <NodeShape
+            key={node.id}
+            node={node}
+            isSelected={selectedNode === node.id}
+            onClick={() => onNodeClick?.(node.id)}
+            interactive={interactive}
+            onDragStart={onNodeDragStart}
+          />
+        ))}
+      </svg>
     </div>
   );
 }
@@ -211,6 +228,18 @@ function NodeShape({ node, isSelected, onClick, interactive, onDragStart }) {
       fontSize = 11;
       break;
     }
+    case 'goto': {
+      // Pentagon / arrow-right shape for goto
+      const gh = hh;
+      const tip = hw * 0.25;
+      const points = `${x - hw},${y - gh} ${x + hw - tip},${y - gh} ${x + hw},${y} ${x + hw - tip},${y + gh} ${x - hw},${y + gh}`;
+      shape = (
+        <polygon points={points}
+          fill="url(#grad-goto)" stroke={isSelected ? '#be185d' : '#ec4899'} strokeWidth={isSelected ? 3 : 1.5} filter="url(#shadow)" />
+      );
+      fontSize = 11;
+      break;
+    }
     default:
       shape = (
         <rect x={x - hw} y={y - hh} width={w} height={h} rx={4} ry={4}
@@ -220,7 +249,7 @@ function NodeShape({ node, isSelected, onClick, interactive, onDragStart }) {
   }
 
   // Word wrap text
-  const maxCharsPerLine = type === 'decision' ? 16 : 20;
+  const maxCharsPerLine = (type === 'decision' || type === 'goto') ? 16 : 20;
   const textLines = wrapText(text, maxCharsPerLine);
 
   return (
@@ -239,68 +268,117 @@ function NodeShape({ node, isSelected, onClick, interactive, onDragStart }) {
   );
 }
 
-function ConnectionLine({ conn, nodes }) {
+function ConnectionLine({ conn, nodes, idx, isHovered, onHover, onDelete, interactive }) {
   const fromNode = nodes.find(n => n.id === conn.from);
   const toNode = nodes.find(n => n.id === conn.to);
   if (!fromNode || !toNode) return null;
 
-  let x1, y1, x2, y2;
   const isBack = conn.isBack;
+  const isGoto = fromNode.type === 'goto' || toNode.type === 'goto';
+
+  // --- Akıllı port seçimi ---
+  // Bağlantının gidişatına göre hangi taraftan çıkacağına karar ver
+  let x1, y1, x2, y2;
 
   if (conn.side === 'right') {
-    x1 = fromNode.x + (fromNode.width / 2 + 10);
+    x1 = fromNode.x + fromNode.width / 2;
     y1 = fromNode.y;
-    x2 = toNode.x;
-    y2 = toNode.y - toNode.height / 2;
+    x2 = toNode.x - toNode.width / 2;
+    y2 = toNode.y;
   } else if (conn.side === 'right-down') {
-    x1 = fromNode.x + (fromNode.width / 2 + 10);
+    x1 = fromNode.x + fromNode.width / 2;
     y1 = fromNode.y;
-    x2 = toNode.x;
+    x2 = toNode.x + toNode.width / 2;
     y2 = toNode.y;
   } else {
+    // Default: aşağıdan çık, yukarıdan gir
     x1 = fromNode.x;
     y1 = fromNode.y + fromNode.height / 2;
     x2 = toNode.x;
     y2 = toNode.y - toNode.height / 2;
   }
 
+  // --- Path hesabı ---
   let path;
+  const SIDE_OFFSET = 60; // yan kaçış mesafesi
+
   if (isBack) {
-    // Back arrow for loops - goes left and up
-    const offsetX = -80;
-    path = `M ${x1} ${y1} L ${x1 + offsetX} ${y1} L ${x1 + offsetX} ${y2} L ${x2 - fromNode.width/2 - 10} ${y2}`;
+    // Geri ok: sol tarafa çık, yukarı çık
+    const leftX = Math.min(fromNode.x - fromNode.width / 2, toNode.x - toNode.width / 2) - SIDE_OFFSET;
+    path = `M ${x1} ${y1} L ${leftX} ${y1} L ${leftX} ${y2} L ${x2} ${y2}`;
   } else if (conn.side === 'right') {
-    const midX = (x1 + x2) / 2;
-    path = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
+    // Hayır kolu: sağa çık, eğri
+    const midX = x1 + (x2 - x1) / 2;
+    path = `M ${x1} ${y1} C ${x1 + SIDE_OFFSET} ${y1}, ${midX} ${y2 - 40}, ${x2} ${y2}`;
   } else if (conn.side === 'right-down') {
-    const rightX = fromNode.x + (fromNode.width / 2 + 10) + 60;
-    path = `M ${x1} ${y1} L ${rightX} ${y1} L ${rightX} ${y2} L ${x2 + toNode.width/2} ${y2}`;
-  } else if (Math.abs(x1 - x2) < 5) {
-    // Straight vertical
+    // Hayır kolu (döngü exit): sağ taraftan çık, aşağı in, hedefe gir
+    const rightX = fromNode.x + fromNode.width / 2 + SIDE_OFFSET;
+    path = `M ${x1} ${y1} L ${rightX} ${y1} L ${rightX} ${y2} L ${x2} ${y2}`;
+  } else if (Math.abs(x1 - x2) < 8) {
+    // Düz dikey
     path = `M ${x1} ${y1} L ${x2} ${y2}`;
   } else {
-    // L-shaped path
-    const midY = (y1 + y2) / 2;
-    path = `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
+    // L-shape: aşağı in, yatay git
+    const midY = y1 + (y2 - y1) * 0.5;
+    path = `M ${x1} ${y1} C ${x1} ${midY}, ${x2} ${midY}, ${x2} ${y2}`;
   }
 
+  // Etiket konumu - path ortasına yerleştir
+  const labelX = (x1 + x2) / 2;
+  const labelY = (y1 + y2) / 2;
+
+  // Silme butonu: path'in ortasına küçük daire
+  const delX = conn.side === 'right' ? x1 + (x2 - x1) * 0.5 : (x1 + x2) / 2;
+  const delY = conn.side === 'right' ? y1 + (y2 - y1) * 0.5 : (y1 + y2) / 2;
+
+  const strokeColor = isBack ? '#a78bfa' : isGoto ? '#f472b6' : '#94a3b8';
+  const markerUrl = isBack ? 'url(#arrowhead-back)' : isGoto ? 'url(#arrowhead-goto)' : 'url(#arrowhead)';
+
   return (
-    <g>
-      <path d={path} fill="none"
-        stroke={isBack ? '#a78bfa' : '#94a3b8'}
-        strokeWidth={2}
-        strokeDasharray={isBack ? '6,4' : 'none'}
-        markerEnd={isBack ? 'url(#arrowhead-back)' : 'url(#arrowhead)'}
+    <g
+      onMouseEnter={() => onHover(idx)}
+      onMouseLeave={() => onHover(null)}
+    >
+      {/* Tıklanabilir kalın saydam şerit (hover alanı) */}
+      <path d={path} fill="none" stroke="transparent" strokeWidth={12} style={{ cursor: interactive ? 'pointer' : 'default' }}
+        onClick={() => interactive && onDelete && onDelete(idx)}
       />
+      {/* Gerçek ok çizgisi */}
+      <path d={path} fill="none"
+        stroke={isHovered ? '#ef4444' : strokeColor}
+        strokeWidth={isHovered ? 2.5 : 2}
+        strokeDasharray={isBack ? '6,4' : 'none'}
+        markerEnd={isHovered ? 'url(#arrowhead)' : markerUrl}
+        style={{ transition: 'stroke 0.15s, stroke-width 0.15s', pointerEvents: 'none' }}
+      />
+      {/* Etiket */}
       {conn.label && (
-        <text
-          x={conn.side === 'right' || conn.side === 'right-down' ? x1 + 8 : x1 + 8}
-          y={conn.side === 'right' || conn.side === 'right-down' ? y1 - 8 : y1 + 18}
-          fontSize="11" fontFamily="Inter, sans-serif" fontWeight="600"
-          fill={conn.label === 'Evet' ? '#10b981' : '#ef4444'}
-        >
-          {conn.label}
-        </text>
+        <g>
+          <rect
+            x={labelX - 18} y={labelY - 11} width={36} height={18} rx={4}
+            fill={conn.label === 'Evet' ? '#d1fae5' : '#fee2e2'}
+            stroke={conn.label === 'Evet' ? '#6ee7b7' : '#fca5a5'}
+            strokeWidth={1}
+          />
+          <text
+            x={labelX} y={labelY}
+            fontSize="11" fontFamily="Inter, sans-serif" fontWeight="700"
+            textAnchor="middle" dominantBaseline="central"
+            fill={conn.label === 'Evet' ? '#059669' : '#dc2626'}
+          >
+            {conn.label}
+          </text>
+        </g>
+      )}
+      {/* Silme butonu - hover'da göster (sadece interactive modda) */}
+      {interactive && isHovered && onDelete && (
+        <g onClick={() => onDelete(idx)} style={{ cursor: 'pointer' }}>
+          <circle cx={delX} cy={delY} r={10} fill="#ef4444" stroke="white" strokeWidth={1.5} />
+          <text x={delX} y={delY} textAnchor="middle" dominantBaseline="central"
+            fontSize="12" fill="white" fontWeight="bold" style={{ pointerEvents: 'none' }}>
+            ×
+          </text>
+        </g>
       )}
     </g>
   );

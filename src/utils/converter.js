@@ -85,6 +85,8 @@ function nodeToAlgoText(node) {
       return `YAZ ${node.text || 'sonuç'}`;
     case 'decision':
       return `EĞER ${node.text || 'koşul'} İSE`;
+    case 'goto':
+      return node.text || 'GİT 1. Adıma';
     default:
       return node.text || '';
   }

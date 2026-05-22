@@ -107,6 +107,13 @@ export function layoutFlowchart(ast) {
         prevId = exitNode.id;
         curY += 20;
 
+      } else if (item.type === 'goto') {
+        const node = createNode('goto', item.text, x, curY);
+        node.stepNum = item.stepNum;
+        nodes.push(node);
+        if (prevId) connections.push({ from: prevId, to: node.id, label: '' });
+        prevId = node.id;
+        curY += node.height + V_GAP;
       } else {
         const node = createNode(item.type, item.text, x, curY);
         nodes.push(node);

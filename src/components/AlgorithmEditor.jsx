@@ -63,6 +63,7 @@ export default function AlgorithmEditor({ algorithmText, setAlgorithmText, setFl
         <div className="help-tag">EĞER_BİTİR</div>
         <div className="help-tag">DÖNGÜ i = 1, n, 1</div>
         <div className="help-tag">DÖNGÜ_BİTİR</div>
+        <div className="help-tag">GİT n. Adıma</div>
       </div>
 
       <div className="editor-container">

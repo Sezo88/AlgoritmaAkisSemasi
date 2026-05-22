@@ -9,6 +9,7 @@ const SHAPE_TYPES = [
   { type: 'input', label: 'Girdi', icon: '🟨', defaultText: 'OKU değişken' },
   { type: 'output', label: 'Çıktı', icon: '🟩', defaultText: 'YAZ sonuç' },
   { type: 'decision', label: 'Karar', icon: '🔶', defaultText: 'Koşul?' },
+  { type: 'goto', label: 'Adıma Git', icon: '🟣', defaultText: 'GİT 1. Adıma' },
 ];
 
 export default function FlowchartBuilder({ flowchartData, setFlowchartData, onConvertToAlgorithm }) {
@@ -225,6 +226,7 @@ export default function FlowchartBuilder({ flowchartData, setFlowchartData, onCo
             onNodeClick={handleNodeClick}
             onNodeDragStart={handleDragStart}
             interactive={true}
+            onDeleteConnection={deleteConnection}
           />
         )}
       </div>
@@ -266,6 +268,6 @@ export default function FlowchartBuilder({ flowchartData, setFlowchartData, onCo
 }
 
 function getTypeName(type) {
-  const names = { start: '🟢 Başla', end: '🔴 Bitir', process: '🟦 İşlem', input: '🟨 Girdi', output: '🟩 Çıktı', decision: '🔶 Karar' };
+  const names = { start: '🟢 Başla', end: '🔴 Bitir', process: '🟦 İşlem', input: '🟨 Girdi', output: '🟩 Çıktı', decision: '🔶 Karar', goto: '🟣 Adıma Git' };
   return names[type] || type;
 }
